@@ -1,6 +1,6 @@
 # tone-learn
 
-This repo serves as a documentation of me learning Tone.js. My goal of learning is to understand the design, the architecture, and the implementation. It's based on [Tone.js v14.7.17](https://tonejs.github.io/docs/14.7.77/index.html).
+This repo serves as a documentation of me learning Tone.js. My goal of learning is to understand the design, the architecture, and the implementation of Tone.js as a whole piece. It's based on [Tone.js v14.7.17](https://tonejs.github.io/docs/14.7.77/index.html).
 
 # Start it from the ground
 
@@ -33,7 +33,13 @@ The first thing I noticed is that it imports and exports the `getContext` and `s
 export { getContext, setContext } from "./core/Global";
 ```
 
-This method is written based on the assumption that we have only one global audio context. The context is the only access point to the Web Audio API, so almost everything in Tone.js is related to this object, expect `TODO`. But, how is this global context created? There are several files in `Tone/core/context/` related to the abstractions over the `standardized-audio-context`, including `AudioContext.ts`, `BaseContext.ts`, `Context.ts`, `OfflineContext.ts`, and `DumyContext.ts`.
+This method is written based on the assumption that we have only one global audio context. The context is the only access point to the Web Audio API, so almost everything in Tone.js is related to this object, expect `TODO`. But, how is this global context created? There are several files in `Tone/core/context/` related to the abstractions over the `standardized-audio-context`, including...
+
+1. `AudioContext.ts`,
+2.  `BaseContext.ts`,
+3.  `Context.ts`,
+4.  `OfflineContext.ts`, and
+5.  `DumyContext.ts`.
 
 `AudioContext.ts` is the contact point to the `standardized-audio-context`. It provides the methods create 2 different kinds of audio contexts, the regular one and the [offline one](https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext). The offline context only renders audio signal as fast as possible to an `AudioBuffer` in the memory instead of to the speaker. It could be used for analysis, testing, and save audio data without worrying about real-time audio rendering.
 Native Web Audio API includes a class `BaseAudioContext` as the base class of this 2 kinds of contexts. The file `BaseContext.ts` is the Tone.js version of it. It extends the Tone's `Emitter` instead of the native [`EventTarget`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget)and it removes some unused or deprecated methods.
