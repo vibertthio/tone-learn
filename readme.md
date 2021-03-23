@@ -167,15 +167,35 @@ immediate(): Seconds {
 }
 ```
 
-
-
 # Transport
 
-// TODO read this [article](https://smartech.gatech.edu/bitstream/handle/1853/54588/WAC2016-49.pdf)
+The meaning of `Transport` could be easily thought as the timeline manipulation in a traditional DAW interface, where you can start/pause/stop, traverse in time, loop certain parts, automate BPM, and etc. `_processTick()` is the entry point of all power of `Transport`. It handles the most important features of a Tone.js Transport:
 
-- How does timer work in real life? What are the affordances of a watch?
-- `TransportEvent`, `schedule`, `scheduleOnce`, `scheduleRepeat`
-  - How are they different from `Part` and  `Loop`?
+1. Loop
+2. Swing
+3. Invoke scheduled events
+
+You can see that literally in the comment in the function implementation. Where is this callback called? It's called by the created `Clock` object which invokes `_processTick()` on "every tick". This is exactly the "Tick" I mentioned in `Context` part. Look at the line 97 in `Clock.ts`:
+
+```javascript
+this.context.on("tick", this._boundLoop);
+```
+
+`Clock` bind the function `this._boundLoop` to the `Context` event "tick" to invoke it on every tick, and it calls the `_processTick()` from `Transport` in it. In the beginnning, I didn't understand why Tone.js has to build this multilayer abstraction on the "tick", "clock", and "beats". I only realized the motivation behind this after I read about the [BPM automation paper](https://smartech.gatech.edu/bitstream/handle/1853/54588/WAC2016-49.pdf) which is shout out in the source code. To my understanding, "tick" is the ground truth of time in the design of Tone.js. Every kind of notation for time in Tone.js will be transformed to tick everntually. **It's interesting to note that, `start()` of `Transport` can supports time offset just by telling the clock about the offset.**
+
+After knowing that `Transport` keeps invoking scheduled events in the "tick loop", the next intuitive question would be "how do you schedule a new events"? There are three methods for scheduling and the names are direct:
+
+1. `schedule`,
+2. `scheduleOnce`, and
+3. `scheduleRepeat`
+
+All of the events are stored as a object of `TransportEvents` in `_timeline`, which is class `Timeline` and it supports fast retrieval of stored contents with binary search. Besides from `_timeline`, all the scheduled events are also stored in a ID mapped hash map `_scheduledEvents`. It could be found in the function `_addEvent` which is called by every scheduling methods. **Therefore, the fastest way to lookup all the events of `Transport` is to inspect the object `_scheduledEvents`.**
+
+The `state` of Transport is directly linked to the `state` of the `Clock`.
+
+
+
+`nextSubdivision` is probably used for beat quantization.
 
 
 
