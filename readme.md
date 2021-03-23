@@ -142,7 +142,7 @@ this._timeout = setTimeout(() => {
 
 What's the precision of the "tick"? It's basically based on `setTimeout`, so it's not sample accurate. So we usually using this to schedule callbacks before the real timing of some sound changes and schedule a sample-accurate precise event in it. It's not used heavily in Tone.js, but below is one example of using it to schedule attack or release for `PolySynth`. It's used here to manage the multiple voices, so it's not used in  `Monophonic` instruments.
 
-![context_settimeout_references](/Users/vibertthio/projects/tone/tone-learn/context_settimeout_references.png)
+![context_settimeout_references](./assets/context_settimeout_references.png)
 
 Furthermore, "tick" event binds with another callback, which is binded from the `Clock` object in `Tone.Transport`. We will talk about it later.
 
