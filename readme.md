@@ -175,13 +175,25 @@ The meaning of `Transport` could be easily thought as the timeline manipulation 
 2. Swing
 3. Invoke scheduled events
 
-You can see that literally in the comment in the function implementation. Where is this callback called? It's called by the created `Clock` object which invokes `_processTick()` on "every tick". This is exactly the "Tick" I mentioned in `Context` part. Look at the line 97 in `Clock.ts`:
+You can see that literally in the comment in the function implementation. Where is this callback called? It's called by the created `Clock` object which invokes `_processTick()` on "every tick". This is totally different from the "tick" I mentioned in `Context` part. I will later called the tick from `Context` as "context tick". Look at the line 97 in `Clock.ts`:
 
 ```javascript
 this.context.on("tick", this._boundLoop);
 ```
 
-`Clock` bind the function `this._boundLoop` to the `Context` event "tick" to invoke it on every tick, and it calls the `_processTick()` from `Transport` in it. In the beginnning, I didn't understand why Tone.js has to build this multilayer abstraction on the "tick", "clock", and "beats". I only realized the motivation behind this after I read about the [BPM automation paper](https://smartech.gatech.edu/bitstream/handle/1853/54588/WAC2016-49.pdf) which is shout out in the source code. To my understanding, "tick" is the ground truth of time in the design of Tone.js. Every kind of notation for time in Tone.js will be transformed to tick everntually. **It's interesting to note that, `start()` of `Transport` can supports time offset just by telling the clock about the offset.**
+`Clock` bind the function `this._boundLoop` to the `Context` event "context tick" to invoke it on every "context tick", and it calls the `_processTick()` from `Transport` in it. The way it's called is interesting:
+
+```javascript
+// Tone/core/clock/Clock.ts
+
+this._tickSource.forEachTickBetween(startTime, endTime, (time, ticks) => {
+	this.callback(time, ticks);
+});
+```
+
+The "context tick" is a not so precise clock, and the tick provided by the `_tickSource` is the sample accurate clock. Therefore, we use the context tick to trigger the `_loop` or `_boundLoop` regularly, and call a series of "ticks" with the callback. Note that, the time of the "tick" is not accurate either, but it provides the accurate time 
+
+In the beginnning, I didn't understand why Tone.js has to build this multilayer abstraction on the "tick", "clock", and "beats". I only realized the motivation behind this after I read about the [BPM automation paper](https://smartech.gatech.edu/bitstream/handle/1853/54588/WAC2016-49.pdf) which is shout out in the source code. To my understanding, "tick" provided by `TickSource` is the ground truth of time in the design of Tone.js. Every kind of notation for time in Tone.js will be transformed to tick everntually. The "tick" is calculated mostly in `TickSource` fucntion `getTicksAtTime`. Everytime you want to get the current tick, you will have to count it from the last "stop" event to the "current time". The adding up needs to consider the "pause" by omitting the ticks when paused or tick offsets created when the tick is set by the `setTicksAtTime`. The adding is still not trivial. It has to call `getTicksAtTime` of `this.frequency` which is a `TickSignal`. `TickSignal` extends `Tone.Signal` so it's like a wrapper around an audio-rate "number". In this case, the "number" is the "tick signal". Underlying the signal, it's the `Param` (`TickParam` in this case) which is a thin wrapper around native `AudioParam`.
 
 After knowing that `Transport` keeps invoking scheduled events in the "tick loop", the next intuitive question would be "how do you schedule a new events"? There are three methods for scheduling and the names are direct:
 
