@@ -109,8 +109,6 @@ You can find all of them by searching `onContextInit` in the source code directo
 
 ## Ticker
 
-// TODO
-
 At the beginning, I thought `Context` provides a almost transparent layer to the native context. In terms of time keeping, the native API only provides 2 main functionality, current time ([BaseAudioContext.currentTime](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/currentTime)) and schedule value changes ([AudioParam.setValueAtTime](https://developer.mozilla.org/en-US/docs/Web/API/AudioParam/setValueAtTime)). In Tone.js, `Context` support a mechanism "tick" with the class `Ticker`.
 
 `Ticker` invoke callback regularly with either `Web Worker` or `setTimeout`, just like a ticking clock. You can specify the type by passing in `type: TickerClockSource` to the `Ticker` constructor. The other options is to pass `offline` as the `type` to prevent creating any clock mechanism. `Ticker` will fire the passed in from `Context` which is the emission of "tick" event repeatedly.
@@ -191,37 +189,37 @@ this._tickSource.forEachTickBetween(startTime, endTime, (time, ticks) => {
 });
 ```
 
-The "context tick" is a not so precise clock, and the tick provided by the `_tickSource` is the sample accurate clock. Therefore, we use the context tick to trigger the `_loop` or `_boundLoop` regularly, and call a series of "ticks" with the callback. Note that, the time of the "tick" is not accurate either, but it provides the accurate time 
+The "context tick" is a not so precise clock, and the tick provided by the `_tickSource` is the sample accurate clock. Therefore, we use the context tick to trigger the `_loop` or `_boundLoop` regularly, and call a series of "ticks" with the callback. Note that, the time when the "tick" callback happen is not accurate either, but it provides the accurate time as a parameter so we can use it to schedule sample-rate accurate audio events.
 
-In the beginnning, I didn't understand why Tone.js has to build this multilayer abstraction on the "tick", "clock", and "beats". I only realized the motivation behind this after I read about the [BPM automation paper](https://smartech.gatech.edu/bitstream/handle/1853/54588/WAC2016-49.pdf) which is shout out in the source code. To my understanding, "tick" provided by `TickSource` is the ground truth of time in the design of Tone.js. Every kind of notation for time in Tone.js will be transformed to tick everntually. The "tick" is calculated mostly in `TickSource` fucntion `getTicksAtTime`. Everytime you want to get the current tick, you will have to count it from the last "stop" event to the "current time". The adding up needs to consider the "pause" by omitting the ticks when paused or tick offsets created when the tick is set by the `setTicksAtTime`. The adding is still not trivial. It has to call `getTicksAtTime` of `this.frequency` which is a `TickSignal`. `TickSignal` extends `Tone.Signal` so it's like a wrapper around an audio-rate "number". In this case, the "number" is the "tick signal". Underlying the signal, it's the `Param` (`TickParam` in this case) which is a thin wrapper around native `AudioParam`.
+## TickSource, TickSignal, and TickParam
 
-After knowing that `Transport` keeps invoking scheduled events in the "tick loop", the next intuitive question would be "how do you schedule a new events"? There are three methods for scheduling and the names are direct:
+In the beginnning, I didn't understand why Tone.js has to build this multilayer abstraction on the "tick", "clock", and "beats". I only realized the motivation behind this after I read about the [BPM automation paper](https://smartech.gatech.edu/bitstream/handle/1853/54588/WAC2016-49.pdf) which is shout out in the source code. To my understanding, "tick" provided by `TickSource` is the ground truth of time in the design of Tone.js. Every kind of notation for time in Tone.js will be transformed to tick everntually. The "tick" is calculated mostly in `TickSource` fucntion `getTicksAtTime`. Everytime you want to get the current tick, you will have to count it from the last "stop" event to the "current time". The adding up needs to consider the "pause" by omitting the ticks when paused or tick offsets created when the tick is set by the `setTicksAtTime`.
+
+The adding is still not trivial. It has to call `getTicksAtTime` of `this.frequency` which is a `TickSignal`. `TickSignal` extends `Tone.Signal` so it's like a wrapper around an audio-rate "number". In this case, the "number" is the "tick signal". Underlying the signal, it's the `Param` (`TickParam` in this case) which is a thin wrapper around native `AudioParam`.
+
+The implemntation details of `Clock`,  `TickSource`, `TickSignal`, and `TickParam` are quite complicated. `TickParam` tracks the ticks not matter the status of the Transport ("start", "stop", or "pause"). The `_param` in it is exactly the `Transport.bpm`. `TickParam` is fully aware of the value changing events scheduled on the tempo (BPM) but it doesn't know anything about the `Transport` status. `TickSource` is the class that takes care of how ticks count should be modified when the `Transport` is either "start", "stop", or "pause".
+
+## Scheduling
+
+We now know that `Transport` keeps invoking scheduled events in the "tick loop" and how the tick is generated and tracked, the next intuitive question would be "how do you schedule new events"? There are three methods for scheduling and the names are direct:
 
 1. `schedule`,
 2. `scheduleOnce`, and
 3. `scheduleRepeat`
 
-All of the events are stored as a object of `TransportEvents` in `_timeline`, which is class `Timeline` and it supports fast retrieval of stored contents with binary search. Besides from `_timeline`, all the scheduled events are also stored in a ID mapped hash map `_scheduledEvents`. It could be found in the function `_addEvent` which is called by every scheduling methods. **Therefore, the fastest way to lookup all the events of `Transport` is to inspect the object `_scheduledEvents`.**
+All of the events are stored as a object of `TransportEvents` in `_timeline`, which is class `Timeline` and it supports fast retrieval of stored contents with binary search. Besides from `_timeline`, all the scheduled events are also stored in a ID mapped hash map `_scheduledEvents`. It could be found in the function `_addEvent` which is called by every scheduling methods. **Therefore, the fastest way to lookup all the events of `Transport` is to inspect the object `_scheduledEvents`.** All the scheuled events will be invoked right in the `_processTick` which is called every tick.
 
-The `state` of Transport is directly linked to the `state` of the `Clock`.
+# Tone.Signal
 
-
-
-`nextSubdivision` is probably used for beat quantization.
-
-
+The official wiki has explained a lot about what `Tone.Signal` is for Tone.js, but I want to mention here some of the things I realized through reading the code. `Tone.Singal` includes a constant source node as the signal data. It could be treated as a node in Tone.js so it could be connected to other signals or sent to destinations. It is just a "audio-rate number" which could be scheduled to change, nothing too complicated.
 
 # Future Topics
 
 - Events and `ToneEvent`
-- How does Tone wrap `AudioNode` & `AudioParam`?
-- class Tone
-- `Tone.Signal`
-- Source
 - Component
 - Instrument
 - Effects
-- Play with microphone inputs and other `StreamMedia`
+- Play with microphone inputs
 - Unit
 
 
